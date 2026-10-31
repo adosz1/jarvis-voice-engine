@@ -1,0 +1,28 @@
+[
+  {
+    "project_name": "CoeliSafe",
+    "local_path": "C:\\Users\\kovia\\Desktop\\Verifiedfor-App",
+    "github_repo": "adosz1/Verifiedfor-App",
+    "github_branch": "main",
+    "cloudflare_project": "coelisafe",
+    "cloudflare_deploy_hook": "",
+    "live_domain": "auto (Cloudflare Pages / Custom Domain)",
+    "webhooks": {
+      "cloudflare_deploy": "",
+      "email_notification": "",
+      "calendar_sync": ""
+    },
+    "system_notes": "CoeliSafe (Verifiedfor-App) is the primary gluten-free safety and verification dining directory application, migrating to Cloudflare Pages with a custom domain. Prioritise strict allergen data integrity, clean UI responsiveness, and verified restaurant/product workflows."
+  },
+  {
+    "project_name": "Jarvis Voice Engine",
+    "local_path": "C:\\Users\\kovia\\Desktop\\Jarvis Voice Engine",
+    "github_repo": "adosz1/jarvis-voice-engine",
+    "github_branch": "main",
+    "cloudflare_project": "",
+    "cloudflare_deploy_hook": "",
+    "live_domain": "",
+    "webhooks": {},
+    "system_notes": "24/7 modular real-time voice orchestrator powered by Gemini Live API, Twilio Media Streams, GitHub cloud code editing, and Cloudflare Pages auto-deploy."
+  }
+]

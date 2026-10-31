@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JARVIS // Voice Engine Testbench (Phase 1)</title>
+  <style>
+    :root {
+      --bg-primary: #090d16;
+      --bg-panel: #111827;
+      --bg-panel-alt: #1e293b;
+      --border: #26334d;
+      --text-main: #f1f5f9;
+      --text-muted: #94a3b8;
+      --accent-cyan: #06b6d4;
+      --accent-emerald: #10b981;
+      --accent-amber: #f59e0b;
+      --accent-red: #ef4444;
+      --font-mono: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+      --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-primary);
+      color: var(--text-main);
+      font-family: var(--font-sans);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      border-bottom: 1px solid var(--border);
+      background: rgba(17, 24, 39, 0.85);
+      backdrop-filter: blur(8px);
+      padding: 14px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .orb {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: var(--accent-cyan);
+      box-shadow: 0 0 12px var(--accent-cyan);
+      transition: all 0.25s ease;
+    }
+
+    .orb.live {
+      background: var(--accent-emerald);
+      box-shadow: 0 0 18px var(--accent-emerald);
+      animation: pulseOrb 1.5s infinite;
+    }
+
+    @keyframes pulseOrb {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.22); opacity: 0.75; }
+    }
+
+    .brand h1 {
+      font-size: 1.1rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .badges {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .badge {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      padding: 4px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: var(--bg-panel-alt);
+      color: var(--text-muted);
+    }
+
+    .badge.ok {
+      border-color: rgba(16, 185, 129, 0.4);
+      color: #34d399;
+      background: rgba(16, 185, 129, 0.1);
+    }
+
+    .badge.warn {
+      border-color: rgba(245, 158, 11, 0.4);
+      color: #fbbf24;
+      background: rgba(245, 158, 11, 0.1);
+    }
+
+    main {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 380px 1fr;
+      gap: 20px;
+      padding: 20px 24px;
+      max-width: 1560px;
+      width: 100%;
+      margin: 0 auto;
+    }
+
+    @media (max-width: 980px) {
+      main {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .panel {
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .panel-title {
+      font-size: 0.82rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    label {
+      display: block;
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+      font-weight: 500;
+    }
+
+    select, input, textarea {
+      width: 100%;
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      color: var(--text-main);
+      padding: 10px 12px;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-family: var(--font-sans);
+      outline: none;
+    }
+
+    select:focus, input:focus, textarea:focus {
+      border-color: var(--accent-cyan);
+    }
+
+    .project-meta {
+      background: rgba(15, 23, 42, 0.7);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      line-height: 1.45;
+      font-family: var(--font-mono);
+      word-break: break-all;
+    }
+
+    .call-btn {
+      width: 100%;
+      padding: 16px;
+      border-radius: 10px;
+      border: 1px solid rgba(6, 182, 212, 0.5);
+      background: linear-gradient(135deg, rgba(6, 182, 212, 0.2), rgba(16, 185, 129, 0.15));
+      color: #fff;
+      font-size: 1rem;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      transition: all 0.2s ease;
+    }
+
+    .call-btn:hover {
+      border-color: var(--accent-cyan);
+      box-shadow: 0 0 20px rgba(6, 182, 212, 0.25);
+    }
+
+    .call-btn.active {
+      background: linear-gradient(135deg, rgba(239, 68, 68, 0.25), rgba(185, 28, 28, 0.25));
+      border-color: var(--accent-red);
+      box-shadow: 0 0 20px rgba(239, 68, 68, 0.3);
+    }
+
+    .meter-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .meter-bar-bg {
+      width: 100%;
+      height: 8px;
+      background: var(--bg-primary);
+      border-radius: 999px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+    }
+
+    .meter-bar-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--accent-cyan), var(--accent-emerald));
+      transition: width 0.06s linear;
+    }
+
+    .btn-secondary {
+      background: var(--bg-panel-alt);
+      color: var(--text-main);
+      border: 1px solid var(--border);
+      padding: 9px 14px;
+      border-radius: 8px;
+      font-size: 0.84rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .btn-secondary:hover {
+      border-color: var(--accent-cyan);
+      color: #fff;
+    }
+
+    .right-column {
+      display: grid;
+      grid-template-rows: auto 1fr;
+      gap: 20px;
+    }
+
+    .jobs-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      max-height: 280px;
+      overflow-y: auto;
+    }
+
+    .job-card {
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .job-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+    }
+
+    .status-pill {
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .status-pill.running {
+      background: rgba(245, 158, 11, 0.15);
+      color: #fbbf24;
+      border: 1px solid rgba(245, 158, 11, 0.4);
+    }
+
+    .status-pill.completed {
+      background: rgba(16, 185, 129, 0.15);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.4);
+    }
+
+    .status-pill.failed {
+      background: rgba(239, 68, 68, 0.15);
+      color: #f87171;
+      border: 1px solid rgba(239, 68, 68, 0.4);
+    }
+
+    .log-console {
+      background: #05080f;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px;
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      line-height: 1.5;
+      height: 330px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .log-entry {
+      word-break: break-word;
+    }
+
+    .log-entry .ts {
+      color: #64748b;
+      margin-right: 8px;
+    }
+
+    .log-entry.info { color: #cbd5e1; }
+    .log-entry.success { color: #34d399; }
+    .log-entry.warn { color: #fbbf24; }
+    .log-entry.error { color: #f87171; }
+    .log-entry.jarvis { color: #38bdf8; }
+    .log-entry.user { color: #a78bfa; }
+
+    .inline-form {
+      display: flex;
+      gap: 8px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <div id="statusOrb" class="orb"></div>
+      <h1>Jarvis // Real-Time Voice Engine</h1>
+    </div>
+    <div class="badges">
+      <span id="wsBadge" class="badge">WS: Connecting...</span>
+      <span id="modelBadge" class="badge">Model: models/gemini-2.5-flash-native-audio</span>
+      <span id="dryRunBadge" class="badge warn">DRY_RUN: true</span>
+      <span id="apiKeyBadge" class="badge">API KEY: Checking...</span>
+    </div>
+  </header>
+
+  <main>
+    <!-- Left Column: Voice & Active Project Controls -->
+    <section class="panel">
+      <div class="panel-title">
+        <span>1. Voice Session & Mic Stream</span>
+        <span id="callStateLabel" style="color: var(--accent-cyan)">Standby</span>
+      </div>
+
+      <button id="callJarvisBtn" class="call-btn">
+        <span id="callBtnIcon">🎙️</span>
+        <span id="callBtnText">Call Jarvis (Mic)</span>
+      </button>
+
+      <div class="meter-wrap">
+        <div style="display:flex; justify-content:space-between; font-size:0.75rem; color:var(--text-muted);">
+          <span>16kHz PCM Mic Input</span>
+          <span id="bargeInIndicator">Barge-In Ready</span>
+        </div>
+        <div class="meter-bar-bg">
+          <div id="micLevelBar" class="meter-bar-fill"></div>
+        </div>
+      </div>
+
+      <div>
+        <label for="projectSelector">Active Project Context</label>
+        <select id="projectSelector"></select>
+      </div>
+
+      <div id="projectMetaBox" class="project-meta">
+        Loading project configuration...
+      </div>
+
+      <hr style="border: none; border-top: 1px solid var(--border);" />
+
+      <div class="panel-title">
+        <span>Quick Manual Tool / Prompt Test</span>
+      </div>
+
+      <div>
+        <label for="taskPromptInput">Dispatch Background Coding Task (`dispatch_coding_task`)</label>
+        <div class="inline-form">
+          <input
+            id="taskPromptInput"
+            type="text"
+            placeholder="e.g., Audit gluten allergen badge UI in CoeliSafe"
+            value="Audit gluten-free verification badge component in CoeliSafe"
+          />
+          <button id="dispatchTaskBtn" class="btn-secondary">Dispatch</button>
+        </div>
+      </div>
+
+      <div>
+        <label for="textPromptInput">Send Text Turn to Active Voice Session</label>
+        <div class="inline-form">
+          <input
+            id="textPromptInput"
+            type="text"
+            placeholder="Ask Jarvis or trigger a tool..."
+          />
+          <button id="sendTextBtn" class="btn-secondary">Send</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Right Column: Background Jobs & Live Callback Log -->
+    <div class="right-column">
+      <section class="panel">
+        <div class="panel-title">
+          <span>2. Background Jobs Tracker (Non-Blocking)</span>
+          <button id="webhookTestBtn" class="btn-secondary" style="padding:4px 10px; font-size:0.75rem;">
+            Test Cloudflare Deploy (`trigger_webhook`)
+          </button>
+        </div>
+        <div id="jobsList" class="jobs-list">
+          <div style="color: var(--text-muted); font-size: 0.85rem;">No background jobs dispatched yet.</div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-title">
+          <span>3. Background Jobs & Callback Log + Live Transcript</span>
+          <button id="clearLogBtn" class="btn-secondary" style="padding:4px 10px; font-size:0.75rem;">Clear</button>
+        </div>
+        <div id="callbackLog" class="log-console"></div>
+      </section>
+    </div>
+  </main>
+
+  <script src="/client.js" type="module"></script>
+</body>
+</html>

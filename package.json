@@ -1,0 +1,16 @@
+{
+  "name": "jarvis-voice-engine",
+  "version": "1.0.0",
+  "description": "Modular, multi-project real-time voice agent ('Jarvis') powered by @google/genai Gemini Live API",
+  "type": "module",
+  "main": "core/server.js",
+  "scripts": {
+    "start": "deno run -A core/server.js"
+  },
+  "dependencies": {
+    "@google/genai": "^1.0.0",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "ws": "^8.18.0"
+  }
+}
