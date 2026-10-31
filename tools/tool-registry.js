@@ -286,6 +286,30 @@ async function triggerCloudflareDeployIfConfigured(project) {
   }
 }
 
+const CODING_MODEL_WATERFALL = [
+  process.env.JARVIS_CODING_MODEL || 'gemini-4-argon',
+  'gemini-3.8-flash',
+  'gemini-3.5-flash'
+];
+
+async function generateWithBestCodingModel(ai, { contents, config }) {
+  let lastErr = null;
+  for (const model of CODING_MODEL_WATERFALL) {
+    try {
+      const resp = await ai.models.generateContent({
+        model,
+        contents,
+        config
+      });
+      return { resp, usedModel: model };
+    } catch (err) {
+      lastErr = err;
+      console.warn(`[CodingAgent] Model ${model} unavailable (${err.status || err.message?.slice(0, 80)}), falling back...`);
+    }
+  }
+  throw lastErr || new Error('All coding models in waterfall failed.');
+}
+
 /**
  * Cloud-native GitHub + Gemini code editor (runs 24/7 even when the user's PC is completely off)
  */
@@ -332,8 +356,7 @@ async function executeCloudGithubCodeEdit({ project, taskPrompt, autoDeploy }) {
   const ai = new GoogleGenAI({ apiKey });
 
   // 2. Ask Gemini which files to inspect/modify based on the file list and taskPrompt
-  const fileSelectResp = await ai.models.generateContent({
-    model: 'gemini-2.5-flash',
+  const { resp: fileSelectResp } = await generateWithBestCodingModel(ai, {
     contents: `You are Jarvis editing the "${project?.project_name || 'CoeliSafe'}" repository (${repo}).
 Task requested by user on voice call: "${taskPrompt}"
 
@@ -381,8 +404,7 @@ Return ONLY a JSON array of up to 5 file paths from the repository that need to 
   }
 
   // 4. Ask Gemini to produce the updated file contents
-  const editResp = await ai.models.generateContent({
-    model: 'gemini-2.5-flash',
+  const { resp: editResp, usedModel } = await generateWithBestCodingModel(ai, {
     contents: `You are Jarvis, an autonomous coding agent editing "${project?.project_name || 'CoeliSafe'}".
 System Notes: ${project?.system_notes || ''}
 User Voice Instruction: "${taskPrompt}"
@@ -455,7 +477,7 @@ Apply the user's requested changes cleanly and completely. Return a JSON object 
     ? 'Pushed to GitHub and triggered Cloudflare Pages deploy hook.'
     : 'Committed to GitHub (Cloudflare Pages auto-deploy triggered).';
 
-  return `${editPlan.summary || `Updated ${committedPaths.join(', ')}`}. ${deployNote}`;
+  return `[Model: ${usedModel}] ${editPlan.summary || `Updated ${committedPaths.join(', ')}`}. ${deployNote}`;
 }
 
 /**
@@ -492,8 +514,7 @@ async function executeLocalGeminiCodeEdit({ project, targetPath, taskPrompt, aut
   const apiKey = (process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || '').trim();
   const ai = new GoogleGenAI({ apiKey });
 
-  const fileSelectResp = await ai.models.generateContent({
-    model: 'gemini-2.5-flash',
+  const { resp: fileSelectResp } = await generateWithBestCodingModel(ai, {
     contents: `You are Jarvis editing "${project?.project_name || 'CoeliSafe'}" at ${targetPath}.
 Task: "${taskPrompt}"
 Files:
@@ -520,8 +541,7 @@ Return ONLY a JSON array of up to 5 relative file paths to read and edit.`,
     }
   }
 
-  const editResp = await ai.models.generateContent({
-    model: 'gemini-2.5-flash',
+  const { resp: editResp, usedModel } = await generateWithBestCodingModel(ai, {
     contents: `You are Jarvis editing "${project?.project_name || 'CoeliSafe'}".
 User Voice Instruction: "${taskPrompt}"
 
@@ -549,7 +569,7 @@ Return JSON:
     hookTriggered = await triggerCloudflareDeployIfConfigured(project);
   }
 
-  return `${editPlan.summary || `Updated ${updatedFiles.map((f) => f.path).join(', ')}`}${
+  return `[Model: ${usedModel}] ${editPlan.summary || `Updated ${updatedFiles.map((f) => f.path).join(', ')}`}${
     hookTriggered ? ' and triggered Cloudflare Pages deploy.' : '.'
   }`;
 }
