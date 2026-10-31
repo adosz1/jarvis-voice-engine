@@ -4,7 +4,7 @@
     "local_path": "C:\\Users\\kovia\\Desktop\\VerifiedGF-App",
     "github_repo": "adosz1/VerifiedGF-App",
     "github_branch": "main",
-    "cloudflare_project": "coelisafe",
+    "cloudflare_project": "verifiedgf-app",
     "cloudflare_deploy_hook": "",
     "live_domain": "auto (Cloudflare Pages / Custom Domain)",
     "webhooks": {
