@@ -20,13 +20,13 @@ export function ensureModelsPrefix(modelName) {
   return `models/${cleaned}`;
 }
 
-export const LIVE_MODEL = 'models/gemini-2.5-flash-native-audio';
+export const LIVE_MODEL = 'models/gemini-2.5-flash-native-audio-preview-12-2025';
 export const PRIMARY_MODEL = LIVE_MODEL;
 export const FALLBACK_MODEL = LIVE_MODEL;
 
 const NATIVE_AUDIO_MODEL_CANDIDATES = [
-  'models/gemini-2.5-flash-native-audio',
   'models/gemini-2.5-flash-native-audio-preview-12-2025',
+  'models/gemini-2.5-flash-native-audio',
   'models/gemini-2.5-flash-native-audio-preview-09-2025',
   'models/gemini-2.5-flash-native-audio-latest',
   'models/gemini-live-2.5-flash-native-audio'
