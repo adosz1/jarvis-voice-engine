@@ -59,7 +59,6 @@ export const TOOL_DECLARATIONS = [
         name: 'list_projects',
         description:
           'Returns all configured projects from /profiles/projects.json including project_name, github_repo, cloudflare_project, live_domain, and system_notes.',
-        behavior: 'NON_BLOCKING',
         parameters: {
           type: 'OBJECT',
           properties: {}
@@ -69,7 +68,6 @@ export const TOOL_DECLARATIONS = [
         name: 'dispatch_coding_task',
         description:
           'Dispatches a background coding and Cloudflare auto-deploy task for the target project (such as CoeliSafe). Works 24/7 in Cloud Mode via GitHub + Cloudflare Pages even when the user PC is off, or locally when on PC. Returns immediately with { status: "started", job_id } so Jarvis can continue speaking without blocking, and can call the user back when finished.',
-        behavior: 'NON_BLOCKING',
         parameters: {
           type: 'OBJECT',
           properties: {
@@ -97,7 +95,6 @@ export const TOOL_DECLARATIONS = [
         name: 'trigger_webhook',
         description:
           'Fires an asynchronous HTTP POST request to trigger a Cloudflare Pages deployment ("cloudflare_deploy") or external automation webhook.',
-        behavior: 'NON_BLOCKING',
         parameters: {
           type: 'OBJECT',
           properties: {
@@ -157,7 +154,7 @@ export async function executeToolCall(name, args = {}, context = {}) {
       let executionMode = 'local';
       if (isDryRun) {
         executionMode = 'dry_run';
-      } else if (hasGithubToken && (!localPathExists || String(process.env.CLOUD_MODE).toLowerCase() === 'true')) {
+      } else if (hasGithubToken) {
         executionMode = 'cloud_github_cloudflare';
       }
 

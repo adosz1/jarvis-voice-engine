@@ -234,8 +234,14 @@ export async function triggerTwilioOutboundCallback(job, broadcastToClients = ()
     const accountSid = (process.env.TWILIO_ACCOUNT_SID || '').trim();
     const authToken = (process.env.TWILIO_AUTH_TOKEN || '').trim();
     const fromNumber = (process.env.TWILIO_PHONE_NUMBER || '').trim();
-    const toNumber = (process.env.MY_PHONE_NUMBER || lastCallerNumber || '').trim();
-    const publicHost = (process.env.TWILIO_PUBLIC_HOST || lastPublicHost || '').trim();
+    const toNumber = (process.env.MY_PHONE_NUMBER || lastCallerNumber || '+447833079199').trim();
+    const publicHost = (
+      process.env.TWILIO_PUBLIC_HOST ||
+      process.env.RENDER_EXTERNAL_HOSTNAME ||
+      process.env.RENDER_EXTERNAL_URL ||
+      lastPublicHost ||
+      'jarvis-voice-engine.onrender.com'
+    ).trim();
 
     if (!accountSid || !authToken || !fromNumber || !toNumber || !publicHost) {
       console.log(
@@ -469,9 +475,13 @@ export function setupTwilioBridge({
     const cleanupSession = () => {
       pendingMulawPayloads.length = 0;
       if (geminiSession) {
-        activeGeminiSessions.delete(geminiSession);
-        geminiSession.close();
+        const sessionToClose = geminiSession;
         geminiSession = null;
+        sessionToClose.callerDisconnected = true;
+        activeGeminiSessions.delete(sessionToClose);
+        setTimeout(() => {
+          sessionToClose.close();
+        }, 8000);
       }
     };
 

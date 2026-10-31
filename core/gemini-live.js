@@ -74,6 +74,7 @@ export class GeminiLiveSession {
     this.activeModel = null;
     this.isConnected = false;
     this.closing = false;
+    this.callerDisconnected = false;
     this.reconnecting = false;
     this.resumptionHandle = null;
   }
@@ -428,7 +429,6 @@ export class GeminiLiveSession {
             {
               id,
               name,
-              scheduling: 'INTERRUPT',
               response: responsePayload
             }
           ]
@@ -527,7 +527,7 @@ export class GeminiLiveSession {
 
     if (!job.callback_requested) return;
 
-    if (this.session && this.isConnected) {
+    if (this.session && this.isConnected && !this.callerDisconnected) {
       const prompt = `[BACKGROUND_JOB_COMPLETED] Job ID: ${job.job_id} | Project: ${job.project_name} | Status: ${job.status} | Summary: ${job.result_summary}. Announce this completion concisely to the user right now.`;
       this.sendTextPrompt(prompt, true);
     } else if (typeof this.onOfflineCallbackNeeded === 'function') {
