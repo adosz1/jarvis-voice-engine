@@ -284,10 +284,67 @@ async function triggerCloudflareDeployIfConfigured(project) {
 }
 
 const CODING_MODEL_WATERFALL = [
-  process.env.JARVIS_CODING_MODEL || 'gemini-4-argon',
+  process.env.JARVIS_CODING_MODEL || 'gemini-3.7-flash',
+  'gemini-3.6-flash',
+  'gemini-3.5-flash',
   'gemini-3.8-flash',
-  'gemini-3.5-flash'
+  'gemini-4-argon'
 ];
+
+function buildSmartFileExcerpt(filePath, content, taskPrompt) {
+  if (!content || content.length <= 40000) {
+    return content;
+  }
+
+  // For large single-page HTML files (like CoeliSafe's 405KB index.html), extract the <body> HTML markup
+  // plus any keyword-matched regions so we stay well within fast token limits (~30KB instead of 405KB).
+  const bodyStart = content.indexOf('<body>');
+  const scriptInBody = bodyStart !== -1 ? content.indexOf('<script>', bodyStart) : -1;
+
+  const sections = [];
+  if (bodyStart !== -1 && scriptInBody !== -1) {
+    const htmlBodyMarkup = content.slice(bodyStart, Math.min(scriptInBody, bodyStart + 28000));
+    sections.push(`/* --- HTML BODY MARKUP SECTION --- */\n${htmlBodyMarkup}`);
+  } else {
+    sections.push(content.slice(0, 20000));
+  }
+
+  // Also search for keyword matches across the rest of the file
+  const stopWords = new Set([
+    'the', 'and', 'for', 'that', 'this', 'with', 'from', 'into', 'add', 'small',
+    'make', 'change', 'update', 'edit', 'index', 'html', 'coelisafe', 'jarvis', 'file'
+  ]);
+  const keywords = (taskPrompt.toLowerCase().match(/[a-z0-9_]{4,}/g) || []).filter(
+    (w) => !stopWords.has(w)
+  );
+
+  if (keywords.length > 0) {
+    const lines = content.split('\n');
+    const matchedRanges = [];
+    for (let i = 0; i < lines.length; i++) {
+      const lower = lines[i].toLowerCase();
+      if (keywords.some((kw) => lower.includes(kw))) {
+        const start = Math.max(0, i - 15);
+        const end = Math.min(lines.length - 1, i + 20);
+        if (matchedRanges.length > 0 && start <= matchedRanges[matchedRanges.length - 1].end) {
+          matchedRanges[matchedRanges.length - 1].end = end;
+        } else {
+          matchedRanges.push({ start, end });
+        }
+        i = end;
+        if (matchedRanges.length >= 4) break;
+      }
+    }
+    for (const r of matchedRanges) {
+      const snippet = lines.slice(r.start, r.end + 1).join('\n');
+      if (snippet.length < 8000) {
+        sections.push(`/* --- MATCHED LINES ${r.start + 1}-${r.end + 1} --- */\n${snippet}`);
+      }
+    }
+  }
+
+  return sections.join('\n\n').slice(0, 38000);
+}
 
 async function generateWithBestCodingModel(ai, { contents, config }) {
   let lastErr = null;
@@ -296,7 +353,10 @@ async function generateWithBestCodingModel(ai, { contents, config }) {
       const resp = await ai.models.generateContent({
         model,
         contents,
-        config
+        config: {
+          ...(config || {}),
+          abortSignal: AbortSignal.timeout(25000)
+        }
       });
       return { resp, usedModel: model };
     } catch (err) {
@@ -406,9 +466,9 @@ Return ONLY a JSON array of up to 5 file paths from the repository that need to 
 System Notes: ${project?.system_notes || ''}
 User Voice Instruction: "${taskPrompt}"
 
-Current file contents:
+Current file contents (or relevant sections for large files):
 ${fileSnapshots
-  .map((f) => `--- FILE: ${f.path} ---\n${f.content}\n--- END FILE: ${f.path} ---`)
+  .map((f) => `--- FILE: ${f.path} ---\n${buildSmartFileExcerpt(f.path, f.content, taskPrompt)}\n--- END FILE: ${f.path} ---`)
   .join('\n\n')}
 
 Apply the user's requested changes using concise, exact search-and-replace blocks (do NOT output the entire file unless creating a brand-new file). Return a JSON object with:
