@@ -94,7 +94,11 @@ jobManager.on('job_finished', (job) => {
   });
 });
 
-// REST Endpoints for Pre-Twilio Control Panel & Diagnostics
+// Health & status endpoints for Render / Cloudflare & Control Panel
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', service: 'Jarvis Voice Engine', timestamp: new Date().toISOString() });
+});
+
 app.get('/api/status', (req, res) => {
   const hasApiKey = Boolean(
     process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'your_gemini_api_key_here'
@@ -318,15 +322,59 @@ wss.on('connection', (ws) => {
   });
 });
 
-server.listen(PORT, () => {
+server.listen(PORT, async () => {
+  const externalUrl = (process.env.RENDER_EXTERNAL_URL || process.env.PUBLIC_URL || '').replace(/\/$/, '');
   console.log(`============================================================`);
   console.log(`  JARVIS VOICE ENGINE — PHASE 3 (24/7 CLOUD + CLOUDFLARE)`);
-  console.log(`  Local Control Panel : http://localhost:${PORT}`);
-  console.log(`  UI WebSocket        : ws://localhost:${PORT}/ws`);
-  console.log(`  Twilio Voice Hook   : http://localhost:${PORT}/twilio/voice`);
-  console.log(`  Twilio Media WS     : ws://localhost:${PORT}/twilio/media`);
+  console.log(`  Local Control Panel : ${externalUrl || `http://localhost:${PORT}`}`);
+  console.log(`  UI WebSocket        : ${externalUrl ? externalUrl.replace(/^http/, 'ws') : `ws://localhost:${PORT}`}/ws`);
+  console.log(`  Twilio Voice Hook   : ${externalUrl || `http://localhost:${PORT}`}/twilio/voice`);
+  console.log(`  Twilio Media WS     : ${externalUrl ? externalUrl.replace(/^http/, 'ws') : `ws://localhost:${PORT}`}/twilio/media`);
   console.log(`  Primary Live Model  : ${PRIMARY_MODEL}`);
   console.log(`  J.A.R.V.I.S. Voice  : ${process.env.JARVIS_VOICE || 'Charon'} (British RP)`);
   console.log(`  Dry Run Mode        : ${String(process.env.DRY_RUN).toLowerCase() === 'true'}`);
   console.log(`============================================================`);
+
+  if (externalUrl) {
+    // 1. Keep Render Free Tier warm with a 10-minute external self-ping
+    setInterval(() => {
+      fetch(`${externalUrl}/health`).catch(() => {});
+    }, 10 * 60 * 1000);
+
+    // 2. Automatically point Twilio phone number webhook to this 24/7 Cloud URL
+    const accountSid = process.env.TWILIO_ACCOUNT_SID;
+    const authToken = process.env.TWILIO_AUTH_TOKEN;
+    const phoneNumber = process.env.TWILIO_PHONE_NUMBER;
+    if (accountSid && authToken && phoneNumber) {
+      try {
+        const basicAuth = Buffer.from(`${accountSid}:${authToken}`).toString('base64');
+        const listUrl = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/IncomingPhoneNumbers.json?PhoneNumber=${encodeURIComponent(phoneNumber)}`;
+        const listRes = await fetch(listUrl, { headers: { Authorization: `Basic ${basicAuth}` } });
+        if (listRes.ok) {
+          const listData = await listRes.json();
+          const numObj = (listData.incoming_phone_numbers || [])[0];
+          if (numObj) {
+            const voiceUrl = `${externalUrl}/twilio/voice`;
+            const form = new URLSearchParams({ VoiceUrl: voiceUrl, VoiceMethod: 'POST' });
+            const updateRes = await fetch(
+              `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/IncomingPhoneNumbers/${numObj.sid}.json`,
+              {
+                method: 'POST',
+                headers: {
+                  Authorization: `Basic ${basicAuth}`,
+                  'Content-Type': 'application/x-www-form-urlencoded'
+                },
+                body: form.toString()
+              }
+            );
+            if (updateRes.ok) {
+              console.log(`[Twilio Auto-Config] Linked ${phoneNumber} -> ${voiceUrl}`);
+            }
+          }
+        }
+      } catch (err) {
+        console.warn(`[Twilio Auto-Config] Warning: ${err.message}`);
+      }
+    }
+  }
 });
