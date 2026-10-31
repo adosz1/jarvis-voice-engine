@@ -284,9 +284,9 @@ async function triggerCloudflareDeployIfConfigured(project) {
 }
 
 const CODING_MODEL_WATERFALL = [
-  process.env.JARVIS_CODING_MODEL || 'gemini-3.7-flash',
+  process.env.JARVIS_CODING_MODEL || 'gemini-3.5-flash',
   'gemini-3.6-flash',
-  'gemini-3.5-flash',
+  'gemini-3.7-flash',
   'gemini-3.8-flash',
   'gemini-4-argon'
 ];
@@ -445,7 +445,9 @@ Return ONLY a JSON array of up to 5 file paths from the repository that need to 
     );
     if (fileRes.ok) {
       const fileJson = await fileRes.json();
-      const decoded = Buffer.from(fileJson.content || '', 'base64').toString('utf-8');
+      const decoded = Buffer.from(fileJson.content || '', 'base64')
+        .toString('utf-8')
+        .replace(/\r\n/g, '\n');
       fileSnapshots.push({
         path: filePath,
         sha: fileJson.sha,
@@ -493,11 +495,18 @@ Apply the user's requested changes using concise, exact search-and-replace block
   if (Array.isArray(editPlan.edits)) {
     for (const patch of editPlan.edits) {
       const target = fileMap.get(patch.path);
-      if (target && patch.search && target.content.includes(patch.search)) {
-        target.content = target.content.replace(patch.search, patch.replace ?? '');
-        target.modified = true;
-      } else if (!target && patch.replace) {
-        fileMap.set(patch.path, { path: patch.path, sha: null, content: patch.replace, modified: true });
+      const cleanSearch = String(patch.search || '').replace(/\r\n/g, '\n');
+      const cleanReplace = String(patch.replace ?? '').replace(/\r\n/g, '\n');
+      if (target && cleanSearch) {
+        if (target.content.includes(cleanSearch)) {
+          target.content = target.content.replace(cleanSearch, cleanReplace);
+          target.modified = true;
+        } else if (target.content.includes(cleanSearch.trim())) {
+          target.content = target.content.replace(cleanSearch.trim(), cleanReplace);
+          target.modified = true;
+        }
+      } else if (!target && cleanReplace) {
+        fileMap.set(patch.path, { path: patch.path, sha: null, content: cleanReplace, modified: true });
       }
     }
   }
