@@ -231,6 +231,8 @@ export function buildTwilioStreamTwiml(req) {
  */
 export async function triggerTwilioOutboundCallback(job, broadcastToClients = () => {}) {
   try {
+    // Give the caller's mobile phone 3.5s after hangup before dialing back so the line is free
+    await new Promise((r) => setTimeout(r, 3500));
     const accountSid = (process.env.TWILIO_ACCOUNT_SID || '').trim();
     const authToken = (process.env.TWILIO_AUTH_TOKEN || '').trim();
     const fromNumber = (process.env.TWILIO_PHONE_NUMBER || '').trim();

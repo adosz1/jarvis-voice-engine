@@ -284,29 +284,31 @@ async function triggerCloudflareDeployIfConfigured(project) {
 }
 
 const CODING_MODEL_WATERFALL = [
-  process.env.JARVIS_CODING_MODEL || 'gemini-3.5-flash',
+  ...(process.env.JARVIS_CODING_MODEL ? [process.env.JARVIS_CODING_MODEL] : []),
+  'gemini-3.5-flash-lite',
+  'gemini-3.5-flash',
+  'gemini-3.1-flash-lite',
   'gemini-3.6-flash',
   'gemini-3.7-flash',
-  'gemini-3.8-flash',
-  'gemini-4-argon'
+  'gemini-3.8-flash'
 ];
 
 function buildSmartFileExcerpt(filePath, content, taskPrompt) {
-  if (!content || content.length <= 40000) {
+  if (!content || content.length <= 15000) {
     return content;
   }
 
   // For large single-page HTML files (like CoeliSafe's 405KB index.html), extract the <body> HTML markup
-  // plus any keyword-matched regions so we stay well within fast token limits (~30KB instead of 405KB).
+  // plus any keyword-matched regions so we stay well within fast Free Tier token limits (~14KB instead of 405KB).
   const bodyStart = content.indexOf('<body>');
   const scriptInBody = bodyStart !== -1 ? content.indexOf('<script>', bodyStart) : -1;
 
   const sections = [];
   if (bodyStart !== -1 && scriptInBody !== -1) {
-    const htmlBodyMarkup = content.slice(bodyStart, Math.min(scriptInBody, bodyStart + 28000));
+    const htmlBodyMarkup = content.slice(bodyStart, Math.min(scriptInBody, bodyStart + 10000));
     sections.push(`/* --- HTML BODY MARKUP SECTION --- */\n${htmlBodyMarkup}`);
   } else {
-    sections.push(content.slice(0, 20000));
+    sections.push(content.slice(0, 10000));
   }
 
   // Also search for keyword matches across the rest of the file
@@ -324,26 +326,26 @@ function buildSmartFileExcerpt(filePath, content, taskPrompt) {
     for (let i = 0; i < lines.length; i++) {
       const lower = lines[i].toLowerCase();
       if (keywords.some((kw) => lower.includes(kw))) {
-        const start = Math.max(0, i - 15);
-        const end = Math.min(lines.length - 1, i + 20);
+        const start = Math.max(0, i - 10);
+        const end = Math.min(lines.length - 1, i + 15);
         if (matchedRanges.length > 0 && start <= matchedRanges[matchedRanges.length - 1].end) {
           matchedRanges[matchedRanges.length - 1].end = end;
         } else {
           matchedRanges.push({ start, end });
         }
         i = end;
-        if (matchedRanges.length >= 4) break;
+        if (matchedRanges.length >= 3) break;
       }
     }
     for (const r of matchedRanges) {
       const snippet = lines.slice(r.start, r.end + 1).join('\n');
-      if (snippet.length < 8000) {
+      if (snippet.length < 5000) {
         sections.push(`/* --- MATCHED LINES ${r.start + 1}-${r.end + 1} --- */\n${snippet}`);
       }
     }
   }
 
-  return sections.join('\n\n').slice(0, 38000);
+  return sections.join('\n\n').slice(0, 15000);
 }
 
 async function generateWithBestCodingModel(ai, { contents, config }) {
@@ -355,7 +357,7 @@ async function generateWithBestCodingModel(ai, { contents, config }) {
         contents,
         config: {
           ...(config || {}),
-          abortSignal: AbortSignal.timeout(25000)
+          abortSignal: AbortSignal.timeout(45000)
         }
       });
       return { resp, usedModel: model };
@@ -412,28 +414,34 @@ async function executeCloudGithubCodeEdit({ project, taskPrompt, autoDeploy }) {
   const apiKey = (process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || '').trim();
   const ai = new GoogleGenAI({ apiKey });
 
-  // 2. Ask Gemini which files to inspect/modify based on the file list and taskPrompt
-  const { resp: fileSelectResp } = await generateWithBestCodingModel(ai, {
-    contents: `You are Jarvis editing the "${project?.project_name || 'CoeliSafe'}" repository (${repo}).
+  // 2. Select target files directly if named in prompt (saves an API call), otherwise ask Gemini
+  const lowerPrompt = taskPrompt.toLowerCase();
+  let targetFiles = allFiles.filter((f) => lowerPrompt.includes(f.toLowerCase()));
+  if (targetFiles.length === 0 && allFiles.includes('index.html')) {
+    targetFiles = ['index.html'];
+  }
+  if (targetFiles.length === 0) {
+    const { resp: fileSelectResp } = await generateWithBestCodingModel(ai, {
+      contents: `You are Jarvis editing the "${project?.project_name || 'CoeliSafe'}" repository (${repo}).
 Task requested by user on voice call: "${taskPrompt}"
 
 Repository files:
 ${allFiles.slice(0, 250).join('\n')}
 
-Return ONLY a JSON array of up to 5 file paths from the repository that need to be read and edited (or created) to accomplish this task. Example: ["index.html", "src/App.jsx"]`,
-    config: {
-      responseMimeType: 'application/json'
-    }
-  });
+Return ONLY a JSON array of up to 2 file paths from the repository that need to be read and edited (or created) to accomplish this task. Example: ["index.html"]`,
+      config: {
+        responseMimeType: 'application/json'
+      }
+    });
 
-  let targetFiles = [];
-  try {
-    targetFiles = JSON.parse(fileSelectResp.text || '[]');
-  } catch {
-    targetFiles = allFiles.slice(0, 3);
+    try {
+      targetFiles = JSON.parse(fileSelectResp.text || '[]');
+    } catch {
+      targetFiles = allFiles.slice(0, 2);
+    }
   }
   if (!Array.isArray(targetFiles) || targetFiles.length === 0) {
-    targetFiles = allFiles.slice(0, 3);
+    targetFiles = allFiles.slice(0, 2);
   }
 
   // 3. Fetch current contents + SHA of selected files from GitHub
