@@ -2,6 +2,7 @@ import express from 'express';
 import { WebSocketServer, WebSocket } from 'ws';
 import { GeminiLiveSession } from './gemini-live.js';
 import { jobManager } from './job-manager.js';
+import { executeToolCall } from '../tools/tool-registry.js';
 
 let lastCallerNumber = '';
 let lastPublicHost = '';
@@ -227,6 +228,60 @@ export function buildTwilioStreamTwiml(req) {
 }
 
 /**
+ * Send an outbound Twilio SMS message to the user
+ */
+export async function sendTwilioSms(toNumber, bodyText, broadcastToClients = () => {}) {
+  try {
+    const accountSid = (process.env.TWILIO_ACCOUNT_SID || '').trim();
+    const authToken = (process.env.TWILIO_AUTH_TOKEN || '').trim();
+    const fromNumber = (process.env.TWILIO_PHONE_NUMBER || '').trim();
+    const targetNumber = (toNumber || process.env.MY_PHONE_NUMBER || lastCallerNumber || '+447833079199').trim();
+
+    if (!accountSid || !authToken || !fromNumber || !targetNumber) {
+      return false;
+    }
+
+    const basicAuth = Buffer.from(`${accountSid}:${authToken}`).toString('base64');
+    const formBody = new URLSearchParams({
+      To: targetNumber,
+      From: fromNumber,
+      Body: String(bodyText || '').slice(0, 1500)
+    });
+
+    const res = await fetch(
+      `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Basic ${basicAuth}`,
+          'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: formBody.toString()
+      }
+    );
+
+    if (res.ok) {
+      const data = await res.json();
+      console.log(`[TwilioSMS] Sent SMS to ${targetNumber} (Sid: ${data.sid})`);
+      broadcastToClients({
+        type: 'callback_log',
+        level: 'success',
+        message: `[Twilio SMS Sent] To ${targetNumber}: ${bodyText}`,
+        timestamp: new Date().toISOString()
+      });
+      return true;
+    } else {
+      const errText = await res.text();
+      console.warn(`[TwilioSMS] Outbound SMS failed (${res.status}): ${errText}`);
+      return false;
+    }
+  } catch (err) {
+    console.error('[TwilioSMS] Error sending SMS:', err.message);
+    return false;
+  }
+}
+
+/**
  * Trigger an outbound Twilio phone call back to the user when a background job completes after hangup
  */
 export async function triggerTwilioOutboundCallback(job, broadcastToClients = () => {}) {
@@ -340,6 +395,75 @@ export function setupTwilioBridge({
     });
 
     res.status(200).type('text/xml').send(twiml);
+  });
+
+  // Inbound SMS webhook (/twilio/sms) so the user can also text tasks directly to Jarvis with exact spelling
+  router.all('/sms', async (req, res) => {
+    const smsBody = String(req.body?.Body || req.query?.Body || '').trim();
+    const sender = String(req.body?.From || req.query?.From || process.env.MY_PHONE_NUMBER || '+447833079199').trim();
+    const twilioOwnNum = (process.env.TWILIO_PHONE_NUMBER || '').trim();
+
+    if (sender && sender.startsWith('+') && sender !== twilioOwnNum) {
+      lastCallerNumber = sender;
+    }
+
+    console.log(`[TwilioSMS] Incoming SMS from ${sender}: "${smsBody}"`);
+    broadcastToClients({
+      type: 'callback_log',
+      level: 'info',
+      message: `[Twilio SMS] From ${sender}: "${smsBody}"`,
+      timestamp: new Date().toISOString()
+    });
+
+    if (!smsBody) {
+      const emptyTwiml = [
+        '<?xml version="1.0" encoding="UTF-8"?>',
+        '<Response>',
+        '  <Message>Jarvis online, Sir. Text me any CoeliSafe task or restaurant to add/remove and I will deploy it automatically.</Message>',
+        '</Response>'
+      ].join('\n');
+      return res.status(200).type('text/xml').send(emptyTwiml);
+    }
+
+    try {
+      const wantsVoiceCall = /\b(call|ring|hívj|hivj|telefon)\b/i.test(smsBody);
+      const result = await executeToolCall(
+        'dispatch_coding_task',
+        {
+          project_name: 'CoeliSafe',
+          task_prompt: smsBody,
+          auto_deploy: true,
+          callback_requested: true
+        },
+        {
+          activeProject: 'CoeliSafe',
+          onJobCompletedCallback: async (completedJob) => {
+            const statusEmoji = completedJob.status === 'completed' ? '✅' : '⚠️';
+            const smsReply = `${statusEmoji} Jarvis (${completedJob.job_id}): ${completedJob.result_summary}\nLive: https://verifiedgf-app.pages.dev`;
+            await sendTwilioSms(sender, smsReply, broadcastToClients);
+            if (wantsVoiceCall) {
+              triggerTwilioOutboundCallback(completedJob, broadcastToClients);
+            }
+          }
+        }
+      );
+
+      const ackTwiml = [
+        '<?xml version="1.0" encoding="UTF-8"?>',
+        '<Response>',
+        `  <Message>${escapeXml(`⚡ Jarvis on it, Sir (${result.job_id}): "${smsBody}". I will text you back in ~10s once it is live on Cloudflare!`)}</Message>`,
+        '</Response>'
+      ].join('\n');
+      return res.status(200).type('text/xml').send(ackTwiml);
+    } catch (err) {
+      const errTwiml = [
+        '<?xml version="1.0" encoding="UTF-8"?>',
+        '<Response>',
+        `  <Message>${escapeXml(`⚠️ Jarvis error starting task: ${err.message}`)}</Message>`,
+        '</Response>'
+      ].join('\n');
+      return res.status(200).type('text/xml').send(errTwiml);
+    }
   });
 
   app.use('/twilio', router);

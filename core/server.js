@@ -355,7 +355,13 @@ server.listen(PORT, async () => {
           const numObj = (listData.incoming_phone_numbers || [])[0];
           if (numObj) {
             const voiceUrl = `${externalUrl}/twilio/voice`;
-            const form = new URLSearchParams({ VoiceUrl: voiceUrl, VoiceMethod: 'POST' });
+            const smsUrl = `${externalUrl}/twilio/sms`;
+            const form = new URLSearchParams({
+              VoiceUrl: voiceUrl,
+              VoiceMethod: 'POST',
+              SmsUrl: smsUrl,
+              SmsMethod: 'POST'
+            });
             const updateRes = await fetch(
               `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/IncomingPhoneNumbers/${numObj.sid}.json`,
               {
@@ -368,7 +374,7 @@ server.listen(PORT, async () => {
               }
             );
             if (updateRes.ok) {
-              console.log(`[Twilio Auto-Config] Linked ${phoneNumber} -> ${voiceUrl}`);
+              console.log(`[Twilio Auto-Config] Linked ${phoneNumber} -> Voice: ${voiceUrl} | SMS: ${smsUrl}`);
             }
           }
         }
