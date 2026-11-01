@@ -1,17 +1,5 @@
 [
   {
-    "job_id": "job_112",
-    "project_name": "CoeliSafe",
-    "task_prompt": "Add a blue dot to the header.",
-    "command": "[DRY_RUN] Cloud/Local Edit & Cloudflare Deploy: \"Add a blue dot to the header.\"",
-    "callback_requested": true,
-    "status": "running",
-    "result_summary": "Task dispatched and running in background...",
-    "created_at": "2026-11-01T13:04:36.765Z",
-    "updated_at": "2026-11-01T13:04:36.765Z",
-    "completed_at": null
-  },
-  {
     "job_id": "job_111",
     "project_name": "CoeliSafe",
     "task_prompt": "Remove the Jarvis Cloud Active badge element from the header section in index.html.",
@@ -24,18 +12,6 @@
     "completed_at": "2026-10-31T20:48:29.853Z"
   },
   {
-    "job_id": "job_110",
-    "project_name": "CoeliSafe",
-    "task_prompt": "Remove the Jarvis Cloud Active badge element from the header section in index.html.",
-    "command": "[CLOUD 24/7] GitHub Edit + Cloudflare Pages Deploy (adosz1/VerifiedGF-App)",
-    "callback_requested": true,
-    "status": "failed",
-    "result_summary": "Cloud edit failed: fetch failed",
-    "created_at": "2026-10-31T20:47:25.924Z",
-    "updated_at": "2026-10-31T20:47:25.979Z",
-    "completed_at": "2026-10-31T20:47:25.979Z"
-  },
-  {
     "job_id": "job_109",
     "project_name": "CoeliSafe",
     "task_prompt": "Add a small badge in the header of index.html that says Jarvis Cloud Active.",
@@ -46,101 +22,5 @@
     "created_at": "2026-10-31T20:34:58.680Z",
     "updated_at": "2026-10-31T20:36:35.172Z",
     "completed_at": "2026-10-31T20:36:35.172Z"
-  },
-  {
-    "job_id": "job_108",
-    "project_name": "CoeliSafe",
-    "task_prompt": "Add a small badge in the header of index.html that says Jarvis Cloud Active.",
-    "command": "[CLOUD 24/7] GitHub Edit + Cloudflare Pages Deploy (adosz1/VerifiedGF-App)",
-    "callback_requested": true,
-    "status": "failed",
-    "result_summary": "Cloud edit failed: fetch failed",
-    "created_at": "2026-10-31T20:34:12.669Z",
-    "updated_at": "2026-10-31T20:34:12.697Z",
-    "completed_at": "2026-10-31T20:34:12.697Z"
-  },
-  {
-    "job_id": "job_107",
-    "project_name": "CoeliSafe",
-    "task_prompt": "Add a small badge in the header of index.html that says Jarvis Cloud Active.",
-    "command": "[CLOUD 24/7] GitHub Edit + Cloudflare Pages Deploy (adosz1/VerifiedGF-App)",
-    "callback_requested": true,
-    "status": "completed",
-    "result_summary": "[Model: gemini-3.7-flash] Added a 'Jarvis Cloud Active' status badge with a live indicator dot to the app header.. Committed to GitHub (Cloudflare Pages auto-deploy triggered).",
-    "created_at": "2026-10-31T20:24:46.641Z",
-    "updated_at": "2026-10-31T20:27:31.386Z",
-    "completed_at": "2026-10-31T20:27:31.386Z"
-  },
-  {
-    "job_id": "job_106",
-    "project_name": "CoeliSafe",
-    "task_prompt": "Add a small badge in the header of index.html that says Jarvis Cloud Active.",
-    "command": "[CLOUD 24/7] GitHub Edit + Cloudflare Pages Deploy (adosz1/VerifiedGF-App)",
-    "callback_requested": true,
-    "status": "failed",
-    "result_summary": "Cloud edit failed: fetch failed",
-    "created_at": "2026-10-31T20:23:37.412Z",
-    "updated_at": "2026-10-31T20:23:37.428Z",
-    "completed_at": "2026-10-31T20:23:37.428Z"
-  },
-  {
-    "job_id": "job_105",
-    "project_name": "CoeliSafe",
-    "task_prompt": "Add a small badge in the header of index.html that says Jarvis Cloud Active.",
-    "command": "[CLOUD 24/7] GitHub Edit + Cloudflare Pages Deploy (adosz1/VerifiedGF-App)",
-    "callback_requested": true,
-    "status": "failed",
-    "result_summary": "Cloud edit failed: {\"error\":{\"code\":503,\"message\":\"This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later.\",\"status\":\"UNAVAILABLE\"}}",
-    "created_at": "2026-10-31T20:19:58.558Z",
-    "updated_at": "2026-10-31T20:20:26.786Z",
-    "completed_at": "2026-10-31T20:20:26.786Z"
-  },
-  {
-    "job_id": "job_104",
-    "project_name": "CoeliSafe",
-    "task_prompt": "Add a small badge in the header of index.html that says Jarvis Cloud Active.",
-    "command": "[CLOUD 24/7] GitHub Edit + Cloudflare Pages Deploy (adosz1/VerifiedGF-App)",
-    "callback_requested": true,
-    "status": "failed",
-    "result_summary": "Cloud edit failed: fetch failed",
-    "created_at": "2026-10-31T20:18:56.368Z",
-    "updated_at": "2026-10-31T20:18:56.396Z",
-    "completed_at": "2026-10-31T20:18:56.397Z"
-  },
-  {
-    "job_id": "job_103",
-    "project_name": "CoeliSafe",
-    "task_prompt": "Add a Jarvis Cloud Active badge in the header of index.html.",
-    "command": "[DRY_RUN] Cloud/Local Edit & Cloudflare Deploy: \"Add a Jarvis Cloud Active badge in the header of index.html.\"",
-    "callback_requested": true,
-    "status": "completed",
-    "result_summary": "[DRY_RUN] Completed simulated edit & Cloudflare Pages deploy for \"Add a Jarvis Cloud Active badge in the header of index.html.\" on CoeliSafe. (Set DRY_RUN=false in .env for real edits)",
-    "created_at": "2026-10-31T20:05:02.692Z",
-    "updated_at": "2026-10-31T20:05:07.206Z",
-    "completed_at": "2026-10-31T20:05:07.206Z"
-  },
-  {
-    "job_id": "job_102",
-    "project_name": "CoeliSafe",
-    "task_prompt": "Add a new restaurant entry and associated data model/UI components.",
-    "command": "[DRY_RUN] agy -p \"Add a new restaurant entry and associated data model/UI components.\" (in C:\\Users\\kovia\\Desktop\\Verifiedfor-App)",
-    "callback_requested": true,
-    "status": "completed",
-    "result_summary": "Completed dry-run execution of agy -p for task: Add a new restaurant entry and associated data model/UI components. in C:\\Users\\kovia\\Desktop\\Verifiedfor-App",
-    "created_at": "2026-10-31T17:58:36.752Z",
-    "updated_at": "2026-10-31T17:58:41.450Z",
-    "completed_at": "2026-10-31T17:58:41.450Z"
-  },
-  {
-    "job_id": "job_101",
-    "project_name": "CoeliSafe",
-    "task_prompt": "Audit gluten-free verification badge component in CoeliSafe",
-    "command": "[DRY_RUN] agy -p \"Audit gluten-free verification badge component in CoeliSafe\" (in C:\\Users\\kovia\\Desktop\\Verifiedfor-App)",
-    "callback_requested": true,
-    "status": "completed",
-    "result_summary": "Completed dry-run execution of agy -p for task: Audit gluten-free verification badge component in CoeliSafe in C:\\Users\\kovia\\Desktop\\Verifiedfor-App",
-    "created_at": "2026-10-28T01:21:27.187Z",
-    "updated_at": "2026-10-28T01:21:31.813Z",
-    "completed_at": "2026-10-28T01:21:31.813Z"
   }
 ]

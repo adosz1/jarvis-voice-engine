@@ -22,6 +22,9 @@ export class JobManager extends EventEmitter {
         const list = JSON.parse(raw);
         if (Array.isArray(list)) {
           for (const job of list) {
+            if (job.status === 'running') {
+              continue;
+            }
             this.jobs.set(job.job_id, job);
             const num = parseInt(String(job.job_id).replace(/\D/g, ''), 10);
             if (!isNaN(num) && num >= this.counter) {
