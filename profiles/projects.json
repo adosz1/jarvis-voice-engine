@@ -12,7 +12,7 @@
       "email_notification": "",
       "calendar_sync": ""
     },
-    "system_notes": "CoeliSafe (VerifiedGF-App) is the primary gluten-free safety and verification dining directory application, migrating to Cloudflare Pages with a custom domain. Prioritise strict allergen data integrity, clean UI responsiveness, and verified restaurant/product workflows."
+    "system_notes": "CoeliSafe (VerifiedGF-App) is the primary gluten-free safety and verification dining directory application on Cloudflare Pages (https://verifiedgf-app.pages.dev). CRITICAL ARCHITECTURE RULE: In index.html, all restaurant cards (#restaurant-cards-list), map pins, and verified kitchen counters are dynamically rendered at runtime by renderCardsList() from the `const RESTAURANTS = [` array inside <script>. A venue only appears as a full Verified Kitchen card if it has `\"verified\": true` (or id === 0). When adding, editing, or removing a restaurant (e.g., in Szeged, Budapest, etc.), ALWAYS insert/modify/remove the restaurant object inside `const RESTAURANTS = [` with `\"verified\": true`, appropriate `\"region\"` (\"midlands\" for Szeged & Csongrád, \"london\" for Budapest, \"north\" for Debrecen & East, \"south\" for Pécs/Győr/Balaton), `\"coords\": [lat, lng]`, `\"badges\"`, `\"protocols\"`, and `\"menu\"`."
   },
   {
     "project_name": "Jarvis Voice Engine",

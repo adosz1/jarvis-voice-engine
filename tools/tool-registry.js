@@ -298,25 +298,31 @@ function buildSmartFileExcerpt(filePath, content, taskPrompt) {
     return content;
   }
 
-  // For large single-page HTML files (like CoeliSafe's 405KB index.html), extract the <body> HTML markup
-  // plus any keyword-matched regions so we stay well within fast Free Tier token limits (~45KB instead of 405KB).
+  // For large single-page HTML files (like CoeliSafe's 405KB index.html), extract:
+  // 1) The <body> HTML markup section
+  // 2) The start of <script> containing `const RESTAURANTS = [` (so restaurant additions/edits modify the actual JS dataset)
+  // 3) Keyword-matched regions + the tail of <script>
   const bodyStart = content.indexOf('<body>');
   const scriptInBody = bodyStart !== -1 ? content.indexOf('<script>', bodyStart) : -1;
 
   const sections = [];
   if (bodyStart !== -1 && scriptInBody !== -1) {
-    const htmlBodyMarkup = content.slice(bodyStart, Math.min(scriptInBody, bodyStart + 36000));
+    const htmlBodyMarkup = content.slice(bodyStart, Math.min(scriptInBody, bodyStart + 35000));
     sections.push(`/* --- HTML BODY MARKUP SECTION --- */\n${htmlBodyMarkup}`);
+
+    const jsDatasetHead = content.slice(scriptInBody, scriptInBody + 6500);
+    sections.push(`/* --- JAVASCRIPT RESTAURANTS DATASET (const RESTAURANTS) --- */\n${jsDatasetHead}`);
   } else {
-    sections.push(content.slice(0, 25000));
+    sections.push(content.slice(0, 30000));
   }
 
   // Also search for keyword matches across the rest of the file
   const stopWords = new Set([
     'the', 'and', 'for', 'that', 'this', 'with', 'from', 'into', 'add', 'small',
-    'make', 'change', 'update', 'edit', 'index', 'html', 'coelisafe', 'jarvis', 'file'
+    'make', 'change', 'update', 'edit', 'index', 'html', 'coelisafe', 'jarvis', 'file',
+    'website', 'deploy', 'changes', 'located'
   ]);
-  const keywords = (taskPrompt.toLowerCase().match(/[a-z0-9_]{4,}/g) || []).filter(
+  const keywords = (taskPrompt.toLowerCase().match(/[a-z0-9_áéíóöőúüű]{4,}/g) || []).filter(
     (w) => !stopWords.has(w)
   );
 
@@ -326,8 +332,8 @@ function buildSmartFileExcerpt(filePath, content, taskPrompt) {
     for (let i = 0; i < lines.length; i++) {
       const lower = lines[i].toLowerCase();
       if (keywords.some((kw) => lower.includes(kw))) {
-        const start = Math.max(0, i - 12);
-        const end = Math.min(lines.length - 1, i + 18);
+        const start = Math.max(0, i - 15);
+        const end = Math.min(lines.length - 1, i + 25);
         if (matchedRanges.length > 0 && start <= matchedRanges[matchedRanges.length - 1].end) {
           matchedRanges[matchedRanges.length - 1].end = end;
         } else {
@@ -339,13 +345,16 @@ function buildSmartFileExcerpt(filePath, content, taskPrompt) {
     }
     for (const r of matchedRanges) {
       const snippet = lines.slice(r.start, r.end + 1).join('\n');
-      if (snippet.length < 6000) {
+      if (snippet.length < 7000) {
         sections.push(`/* --- MATCHED LINES ${r.start + 1}-${r.end + 1} --- */\n${snippet}`);
       }
     }
   }
 
-  return sections.join('\n\n').slice(0, 48000);
+  const tailSection = content.slice(-6500);
+  sections.push(`/* --- FILE TAIL SECTION --- */\n${tailSection}`);
+
+  return sections.join('\n\n').slice(0, 62000);
 }
 
 async function generateWithBestCodingModel(ai, { contents, config }) {

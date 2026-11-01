@@ -1,26 +1,38 @@
 [
   {
-    "job_id": "job_111",
+    "job_id": "job_117",
     "project_name": "CoeliSafe",
-    "task_prompt": "Remove the Jarvis Cloud Active badge element from the header section in index.html.",
+    "task_prompt": "Add the McDonald's restaurant located on Kárász utca in Szeged to the CoeliSafe website and deploy the changes.",
     "command": "[CLOUD 24/7] GitHub Edit + Cloudflare Pages Deploy (adosz1/VerifiedGF-App)",
     "callback_requested": true,
     "status": "completed",
-    "result_summary": "[Model: gemini-3.5-flash-lite] Removed the Jarvis Cloud Active badge element from the header section in index.html.. Committed to GitHub (Cloudflare Pages auto-deploy triggered).",
-    "created_at": "2026-10-31T20:48:26.086Z",
-    "updated_at": "2026-10-31T20:48:29.853Z",
-    "completed_at": "2026-10-31T20:48:29.853Z"
+    "result_summary": "[Model: gemini-3.5-flash-lite] Added McDonald's on Kárász utca in Szeged to the CoeliSafe RESTAURANTS array with verified gluten-free protocol data and deployed the update.. Committed to GitHub (Cloudflare Pages auto-deploy triggered).",
+    "created_at": "2026-11-01T18:18:03.067Z",
+    "updated_at": "2026-11-01T23:00:16.288Z",
+    "completed_at": "2026-11-01T23:00:16.288Z"
   },
   {
-    "job_id": "job_109",
+    "job_id": "job_116",
     "project_name": "CoeliSafe",
-    "task_prompt": "Add a small badge in the header of index.html that says Jarvis Cloud Active.",
+    "task_prompt": "Remove the red dot indicator from the header section and automatically deploy the changes.",
     "command": "[CLOUD 24/7] GitHub Edit + Cloudflare Pages Deploy (adosz1/VerifiedGF-App)",
     "callback_requested": true,
     "status": "completed",
-    "result_summary": "[Model: gemini-3.5-flash] Added a 'Jarvis Cloud Active' status badge to the main header in index.html.. Committed to GitHub (Cloudflare Pages auto-deploy triggered).",
-    "created_at": "2026-10-31T20:34:58.680Z",
-    "updated_at": "2026-10-31T20:36:35.172Z",
-    "completed_at": "2026-10-31T20:36:35.172Z"
+    "result_summary": "[Model: gemini-3.5-flash-lite] Removed the red pulse dot indicator from the header section and prepared for automatic deployment.. Committed to GitHub (Cloudflare Pages auto-deploy triggered).",
+    "created_at": "2026-11-01T13:19:21.265Z",
+    "updated_at": "2026-11-01T13:19:24.824Z",
+    "completed_at": "2026-11-01T13:19:24.824Z"
+  },
+  {
+    "job_id": "job_115",
+    "project_name": "CoeliSafe",
+    "task_prompt": "Add a red dot indicator to the header section and automatically deploy the changes.",
+    "command": "[CLOUD 24/7] GitHub Edit + Cloudflare Pages Deploy (adosz1/VerifiedGF-App)",
+    "callback_requested": true,
+    "status": "completed",
+    "result_summary": "[Model: gemini-3.5-flash-lite] Added a red dot indicator to the header section and automatically deployed the changes.. Committed to GitHub (Cloudflare Pages auto-deploy triggered).",
+    "created_at": "2026-11-01T13:18:16.025Z",
+    "updated_at": "2026-11-01T13:18:19.296Z",
+    "completed_at": "2026-11-01T13:18:19.296Z"
   }
 ]
