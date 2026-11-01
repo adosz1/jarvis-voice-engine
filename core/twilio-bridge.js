@@ -481,9 +481,13 @@ export function setupTwilioBridge({
         geminiSession = null;
         sessionToClose.callerDisconnected = true;
         activeGeminiSessions.delete(sessionToClose);
+        // Check call transcript 1s after hangup in case the voice model promised a task without emitting toolCall
+        setTimeout(() => {
+          sessionToClose.checkAndAutoDispatchFromTranscript('call_hangup').catch(() => {});
+        }, 1000);
         setTimeout(() => {
           sessionToClose.close();
-        }, 8000);
+        }, 14000);
       }
     };
 

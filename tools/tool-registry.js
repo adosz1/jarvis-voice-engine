@@ -294,21 +294,21 @@ const CODING_MODEL_WATERFALL = [
 ];
 
 function buildSmartFileExcerpt(filePath, content, taskPrompt) {
-  if (!content || content.length <= 15000) {
+  if (!content || content.length <= 45000) {
     return content;
   }
 
   // For large single-page HTML files (like CoeliSafe's 405KB index.html), extract the <body> HTML markup
-  // plus any keyword-matched regions so we stay well within fast Free Tier token limits (~14KB instead of 405KB).
+  // plus any keyword-matched regions so we stay well within fast Free Tier token limits (~45KB instead of 405KB).
   const bodyStart = content.indexOf('<body>');
   const scriptInBody = bodyStart !== -1 ? content.indexOf('<script>', bodyStart) : -1;
 
   const sections = [];
   if (bodyStart !== -1 && scriptInBody !== -1) {
-    const htmlBodyMarkup = content.slice(bodyStart, Math.min(scriptInBody, bodyStart + 10000));
+    const htmlBodyMarkup = content.slice(bodyStart, Math.min(scriptInBody, bodyStart + 36000));
     sections.push(`/* --- HTML BODY MARKUP SECTION --- */\n${htmlBodyMarkup}`);
   } else {
-    sections.push(content.slice(0, 10000));
+    sections.push(content.slice(0, 25000));
   }
 
   // Also search for keyword matches across the rest of the file
@@ -326,26 +326,26 @@ function buildSmartFileExcerpt(filePath, content, taskPrompt) {
     for (let i = 0; i < lines.length; i++) {
       const lower = lines[i].toLowerCase();
       if (keywords.some((kw) => lower.includes(kw))) {
-        const start = Math.max(0, i - 10);
-        const end = Math.min(lines.length - 1, i + 15);
+        const start = Math.max(0, i - 12);
+        const end = Math.min(lines.length - 1, i + 18);
         if (matchedRanges.length > 0 && start <= matchedRanges[matchedRanges.length - 1].end) {
           matchedRanges[matchedRanges.length - 1].end = end;
         } else {
           matchedRanges.push({ start, end });
         }
         i = end;
-        if (matchedRanges.length >= 3) break;
+        if (matchedRanges.length >= 4) break;
       }
     }
     for (const r of matchedRanges) {
       const snippet = lines.slice(r.start, r.end + 1).join('\n');
-      if (snippet.length < 5000) {
+      if (snippet.length < 6000) {
         sections.push(`/* --- MATCHED LINES ${r.start + 1}-${r.end + 1} --- */\n${snippet}`);
       }
     }
   }
 
-  return sections.join('\n\n').slice(0, 15000);
+  return sections.join('\n\n').slice(0, 48000);
 }
 
 async function generateWithBestCodingModel(ai, { contents, config }) {
@@ -512,6 +512,20 @@ Apply the user's requested changes using concise, exact search-and-replace block
         } else if (target.content.includes(cleanSearch.trim())) {
           target.content = target.content.replace(cleanSearch.trim(), cleanReplace);
           target.modified = true;
+        } else {
+          // Whitespace-tolerant multi-line regex fallback
+          const escapedLines = cleanSearch
+            .trim()
+            .split('\n')
+            .map((line) => line.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+            .filter(Boolean);
+          if (escapedLines.length > 0) {
+            const flexRegex = new RegExp(escapedLines.join('\\s+'));
+            if (flexRegex.test(target.content)) {
+              target.content = target.content.replace(flexRegex, () => cleanReplace);
+              target.modified = true;
+            }
+          }
         }
       } else if (!target && cleanReplace) {
         fileMap.set(patch.path, { path: patch.path, sha: null, content: cleanReplace, modified: true });

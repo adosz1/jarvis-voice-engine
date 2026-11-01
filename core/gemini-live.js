@@ -77,6 +77,111 @@ export class GeminiLiveSession {
     this.callerDisconnected = false;
     this.reconnecting = false;
     this.resumptionHandle = null;
+
+    // Transcript tracking for Auto-Dispatch Safety Net (catches tasks when voice model speaks confirmation without emitting toolCall)
+    this.transcriptTurns = [];
+    this.currentJarvisTurnText = '';
+    this.undispatchedUserText = '';
+    this.lastDispatchTime = 0;
+    this.autoDispatchChecking = false;
+  }
+
+  _appendTranscriptTurn(role, text) {
+    if (!text) return;
+    // Skip internal chain-of-thought blocks that start with **
+    if (role === 'jarvis' && text.trim().startsWith('**')) return;
+    if (role === 'user') {
+      this.undispatchedUserText += ' ' + text;
+    } else if (role === 'jarvis') {
+      this.currentJarvisTurnText += ' ' + text;
+    }
+    const last = this.transcriptTurns[this.transcriptTurns.length - 1];
+    if (last && last.role === role) {
+      last.text += text;
+    } else {
+      this.transcriptTurns.push({ role, text });
+      if (this.transcriptTurns.length > 30) {
+        this.transcriptTurns.shift();
+      }
+    }
+  }
+
+  async checkAndAutoDispatchFromTranscript(triggerReason = 'turn_complete') {
+    if (this.autoDispatchChecking) return false;
+    if (Date.now() - this.lastDispatchTime < 15000) return false;
+    if (this.undispatchedUserText.trim().length < 6) return false;
+
+    this.autoDispatchChecking = true;
+    const snapshotUserText = this.undispatchedUserText;
+    try {
+      const rawKey = (process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || '').trim();
+      if (!rawKey) return false;
+
+      const transcriptLog = this.transcriptTurns
+        .slice(-14)
+        .map((t) => `${t.role.toUpperCase()}: ${t.text.trim()}`)
+        .join('\n');
+
+      const ai = new GoogleGenAI({ apiKey: rawKey });
+      const checkModels = ['gemini-3.5-flash-lite', 'gemini-3.5-flash', 'gemini-3.1-flash-lite'];
+      let checkResp = null;
+      for (const m of checkModels) {
+        try {
+          checkResp = await ai.models.generateContent({
+            model: m,
+            contents: `You are the tool-dispatch supervisor for Jarvis Voice Engine.
+Below is the live phone call transcript between the user and Jarvis (in English, Hungarian, or mixed):
+---
+${transcriptLog}
+---
+Did the user ask Jarvis to make any website/code change, add/remove/update any feature, text, badge, restaurant, style, or UI element on CoeliSafe (or did Jarvis promise to execute a task and call back) that has NOT been dispatched yet?
+Ignore pure greetings or status questions where no change was requested.
+Return ONLY JSON:
+{
+  "should_dispatch": true or false,
+  "project_name": "CoeliSafe",
+  "task_prompt": "Clear, detailed English instruction describing the exact code/UI change requested by the user in the transcript"
+}`,
+            config: {
+              responseMimeType: 'application/json',
+              abortSignal: AbortSignal.timeout(12000)
+            }
+          });
+          break;
+        } catch {
+          // Try next model
+        }
+      }
+
+      if (!checkResp?.text) return false;
+      const parsed = JSON.parse(checkResp.text || '{}');
+      if (parsed.should_dispatch && parsed.task_prompt && Date.now() - this.lastDispatchTime >= 15000) {
+        console.log(
+          `[GeminiLive Auto-Dispatch] Caught undispatched voice task (${triggerReason}): "${parsed.task_prompt}"`
+        );
+        this.undispatchedUserText = '';
+        await this._handleFunctionCall({
+          id: `auto-dispatch-${Date.now()}`,
+          name: 'dispatch_coding_task',
+          args: {
+            project_name: parsed.project_name || this.activeProject || 'CoeliSafe',
+            task_prompt: parsed.task_prompt,
+            auto_deploy: true,
+            callback_requested: true
+          }
+        });
+        return true;
+      }
+      if (snapshotUserText === this.undispatchedUserText && triggerReason === 'turn_complete') {
+        // Keep undispatchedUserText in case user elaborates on next turn, or clear if purely conversational
+      }
+      return false;
+    } catch (err) {
+      console.warn('[GeminiLive Auto-Dispatch] Check error:', err.message);
+      return false;
+    } finally {
+      this.autoDispatchChecking = false;
+    }
   }
 
   _buildSystemInstruction() {
@@ -358,6 +463,7 @@ export class GeminiLiveSession {
         }
 
         if (serverContent.inputTranscription?.text) {
+          this._appendTranscriptTurn('user', serverContent.inputTranscription.text);
           this.onTranscript({
             role: 'user',
             text: serverContent.inputTranscription.text
@@ -365,6 +471,7 @@ export class GeminiLiveSession {
         }
 
         if (serverContent.outputTranscription?.text) {
+          this._appendTranscriptTurn('jarvis', serverContent.outputTranscription.text);
           this.onTranscript({
             role: 'jarvis',
             text: serverContent.outputTranscription.text
@@ -378,15 +485,30 @@ export class GeminiLiveSession {
             this.onAudioChunk(part.inlineData.data, mimeType);
           }
           if (part.text) {
+            this._appendTranscriptTurn('jarvis', part.text);
             this.onTranscript({
               role: 'jarvis',
               text: part.text
             });
           }
         }
+
+        if (serverContent.turnComplete) {
+          const spoken = this.currentJarvisTurnText.toLowerCase();
+          this.currentJarvisTurnText = '';
+          const promisedAction =
+            /on it|dispatch|working on|call you back|ring you back|notify|deploy|task|started|job|right away|initiating|elindít|nekilát|dolgozom|visszahív|megcsinál|frissít|máris|azonnal|feladat|megold/i.test(
+              spoken
+            );
+          if (promisedAction && Date.now() - this.lastDispatchTime > 15000) {
+            setTimeout(() => {
+              this.checkAndAutoDispatchFromTranscript('turn_complete');
+            }, 1200);
+          }
+        }
       }
 
-      // 2. Handle non-blocking function calling (toolCall)
+      // 2. Handle function calling (toolCall)
       if (message.toolCall && Array.isArray(message.toolCall.functionCalls)) {
         for (const call of message.toolCall.functionCalls) {
           this._handleFunctionCall(call);
@@ -399,6 +521,10 @@ export class GeminiLiveSession {
 
   async _handleFunctionCall(call) {
     const { id, name, args } = call;
+    if (name === 'dispatch_coding_task') {
+      this.lastDispatchTime = Date.now();
+      this.undispatchedUserText = '';
+    }
     this.onToolEvent({
       type: 'tool_call_started',
       id,
