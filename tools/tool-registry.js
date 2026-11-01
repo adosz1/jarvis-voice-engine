@@ -513,7 +513,18 @@ Apply the user's requested changes using concise, exact search-and-replace block
     for (const patch of editPlan.edits) {
       const target = fileMap.get(patch.path);
       const cleanSearch = String(patch.search || '').replace(/\r\n/g, '\n');
-      const cleanReplace = String(patch.replace ?? '').replace(/\r\n/g, '\n');
+      let cleanReplace = String(patch.replace ?? '').replace(/\r\n/g, '\n');
+      // Ensure any new restaurant object inserted at the top of `const RESTAURANTS = [` includes `"verified": true`
+      if (
+        cleanReplace.includes('const RESTAURANTS = [') &&
+        !cleanReplace.includes('"verified": true') &&
+        /"id"\s*:\s*(?!0\b)\d+/.test(cleanReplace)
+      ) {
+        cleanReplace = cleanReplace.replace(
+          /("id"\s*:\s*(?!0\b)\d+\s*,)/,
+          '$1\n    "verified": true,'
+        );
+      }
       if (target && cleanSearch) {
         if (target.content.includes(cleanSearch)) {
           target.content = target.content.replace(cleanSearch, cleanReplace);
