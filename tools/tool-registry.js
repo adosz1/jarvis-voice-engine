@@ -285,45 +285,48 @@ async function triggerCloudflareDeployIfConfigured(project) {
 
 const CODING_MODEL_WATERFALL = [
   ...(process.env.JARVIS_CODING_MODEL ? [process.env.JARVIS_CODING_MODEL] : []),
-  'gemini-4-argon',
-  'gemini-3.5-flash',
   'gemini-3.5-flash-lite',
-  'gemini-3.1-flash-lite',
+  'gemini-3.5-flash',
   'gemini-3.6-flash',
+  'gemini-3.1-flash-lite',
   'gemini-3.7-flash',
   'gemini-3.8-flash'
 ];
 
 function buildSmartFileExcerpt(filePath, content, taskPrompt) {
-  if (!content || content.length <= 45000) {
+  if (!content || content.length <= 24000) {
     return content;
   }
 
-  // For large single-page HTML files (like CoeliSafe's 405KB index.html), extract:
-  // 1) The <body> HTML markup section
-  // 2) The start of <script> containing `const RESTAURANTS = [` (so restaurant additions/edits modify the actual JS dataset)
-  // 3) Keyword-matched regions + the tail of <script>
+  // Token-efficient smart sectioning for CoeliSafe's 405KB index.html (~18KB total instead of 405KB)
+  // so big tasks never hit token/usage limits.
   const bodyStart = content.indexOf('<body>');
   const scriptInBody = bodyStart !== -1 ? content.indexOf('<script>', bodyStart) : -1;
+  const lowerTask = taskPrompt.toLowerCase();
+  const isRestaurantTask = /\b(restaurant|venue|étterem|etterem|pizz|bistro|mcdonald|sziget|add|remove|delete|vegy|tedd|töröl|torol|menu|étlap|etlap)\b/i.test(lowerTask);
 
   const sections = [];
   if (bodyStart !== -1 && scriptInBody !== -1) {
-    const htmlBodyMarkup = content.slice(bodyStart, Math.min(scriptInBody, bodyStart + 35000));
-    sections.push(`/* --- HTML BODY MARKUP SECTION --- */\n${htmlBodyMarkup}`);
-
-    const jsDatasetHead = content.slice(scriptInBody, scriptInBody + 6500);
-    sections.push(`/* --- JAVASCRIPT RESTAURANTS DATASET (const RESTAURANTS) --- */\n${jsDatasetHead}`);
+    if (isRestaurantTask) {
+      // For restaurant tasks, include compact header/hero + full start of `const RESTAURANTS = [`
+      sections.push(`/* --- HTML HEADER & HERO SECTION --- */\n${content.slice(bodyStart, bodyStart + 6500)}`);
+      sections.push(`/* --- JAVASCRIPT RESTAURANTS DATASET (const RESTAURANTS) --- */\n${content.slice(scriptInBody, scriptInBody + 7500)}`);
+    } else {
+      // For general UI / feature tasks, include the main <body> HTML + top of `const RESTAURANTS = [`
+      sections.push(`/* --- HTML BODY MARKUP SECTION --- */\n${content.slice(bodyStart, Math.min(scriptInBody, bodyStart + 18000))}`);
+      sections.push(`/* --- JAVASCRIPT RESTAURANTS DATASET (const RESTAURANTS) --- */\n${content.slice(scriptInBody, scriptInBody + 3500)}`);
+    }
   } else {
-    sections.push(content.slice(0, 30000));
+    sections.push(content.slice(0, 18000));
   }
 
-  // Also search for keyword matches across the rest of the file
+  // Also search for keyword matches across the entire file (CSS, HTML, or JS functions)
   const stopWords = new Set([
     'the', 'and', 'for', 'that', 'this', 'with', 'from', 'into', 'add', 'small',
     'make', 'change', 'update', 'edit', 'index', 'html', 'coelisafe', 'jarvis', 'file',
-    'website', 'deploy', 'changes', 'located'
+    'website', 'deploy', 'changes', 'located', 'please', 'kérlek', 'kerlek', 'oldal'
   ]);
-  const keywords = (taskPrompt.toLowerCase().match(/[a-z0-9_áéíóöőúüű]{4,}/g) || []).filter(
+  const keywords = (lowerTask.match(/[a-z0-9_áéíóöőúüű]{4,}/g) || []).filter(
     (w) => !stopWords.has(w)
   );
 
@@ -346,16 +349,13 @@ function buildSmartFileExcerpt(filePath, content, taskPrompt) {
     }
     for (const r of matchedRanges) {
       const snippet = lines.slice(r.start, r.end + 1).join('\n');
-      if (snippet.length < 7000) {
+      if (snippet.length < 5500) {
         sections.push(`/* --- MATCHED LINES ${r.start + 1}-${r.end + 1} --- */\n${snippet}`);
       }
     }
   }
 
-  const tailSection = content.slice(-6500);
-  sections.push(`/* --- FILE TAIL SECTION --- */\n${tailSection}`);
-
-  return sections.join('\n\n').slice(0, 62000);
+  return sections.join('\n\n').slice(0, 28000);
 }
 
 async function generateWithBestCodingModel(ai, { contents, config }) {
